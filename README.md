@@ -1,10 +1,332 @@
-# VLSI-Floorplanning
-VLSI Physical Design: Floor Planning, Pin Assignment, and Power/Ground Routing
+# VLSI Physical Design: Floorplanning, Pin Assignment, and Power/Ground Routing
 
-In VLSI physical design, floor planning is the second step after partitioning and determines the shape, relative locations, and pin positions of blocks to optimize the chip layout. Floor planning handles both hard blocks, which have fixed area and dimensions (e.g., PLLs, ADCs, or memory IPs), and soft blocks, which have fixed area but flexible aspect ratios. Its objectives include efficient block placement, assignment of pin locations to minimize interconnect distance, reduction of total wirelength to minimize propagation delay and power, and optimization of the global bounding box, the minimum axis-aligned rectangle enclosing all blocks. The combined objective function can be expressed as Objective = α * Area + (1 - α) * Wirelength, 0 ≤ α ≤ 1, allowing prioritization between area and wirelength. Floor plans can be represented using slicing trees for recursive horizontal/vertical division, constraint graphs (HCG for horizontal constraints, VCG for vertical), or sequence pairs, which encode relative block positions and allow computation of x and y coordinates using the Longest Common Subsequence (LCS) algorithm. The dimensions of the global bounding box are then determined as Width = max(X_i + W_i), Height = max(Y_i + H_i). Each block’s feasible width-height combinations are defined by its shape function, where Area = w × h. Vertical composition sums heights and takes the maximum width, W_floor = max(W_i), H_floor = sum(H_i), while horizontal composition sums widths and takes the maximum height, W_floor = sum(W_i), H_floor = max(H_i). The resulting floor plan area is A_floor = W_floor × H_floor. Common floor planning algorithms include Linear Ordering, which generates an initial block sequence to minimize wirelength using the gain function Gain = terminating nets − new nets; Cluster Growth, which incrementally adds blocks to minimize the global bounding box area A_bounding box = W_bounding box × H_bounding box; and Simulated Annealing, which probabilistically explores the solution space to find near-global optima with acceptance probability P(accept) = e^{-ΔC / T}.
+In VLSI physical design, floor planning is the second step after partitioning. While partitioning divides a design into individual modules, floor planning determines the shape, relative location, and pin positions of each block to optimize the chip layout. It handles hard blocks (fixed area and dimensions, e.g., PLLs, ADCs, or memory IPs) and soft blocks (fixed area but flexible aspect ratio). Unlike placement, which assigns exact coordinates, floor planning only defines relative positions. Inputs include the set of blocks, their areas, possible orientations, number of pins, and the netlist. The output of floor planning feeds into placement. The objectives are to optimize block locations and shapes, assign pin locations to minimize interconnect distance, reduce total wirelength, minimize the global bounding box area, and consider signal delay along critical paths using static timing analysis (STA). A combined objective can be expressed as:
 
-Following floor planning, pin assignment maps nets to unique pins to optimize design performance, maximize routability, minimize wire length, reduce electrical parasitics, and improve signal integrity. Pin assignment can be external, connecting incoming/outgoing signals to unique I/O pins, or internal, connecting pins between cells to reduce congestion and interconnect length. Pins can be functionally equivalent, where swapping does not affect functionality, or electrically equivalent, connected to the same potential. Two commonly used methods for pin assignment are the concentric circle approach, where block and chip pins are projected onto inner and outer circles and iteratively optimized by minimizing Euclidean distance d = sqrt((x_2 - x_1)^2 + (y_2 - y_1)^2), and topological pin assignment, which accounts for external block positions and multipin nets using midpoint lines and farthest points, followed by concentric circle mapping.
+Objective
+=
+𝛼
+⋅
+Area
++
+(
+1
+−
+𝛼
+)
+⋅
+Wirelength
+,
+0
+≤
+𝛼
+≤
+1
+Objective=α⋅Area+(1−α)⋅Wirelength,0≤α≤1
 
-Power and ground routing is critical for reliable chip operation, minimizing IR drop, and handling fluctuations due to dynamic voltage scaling or clock gating. Key considerations include total chip power, maximum power density Power Density = Power in region / Area of region, and power fluctuations across the chip. Each cell and block requires dedicated VDD and GND connections, implemented with thick metal lines and multiple vias to reduce resistance and improve reliability. Two main approaches exist: planar routing for full-custom designs, using Hamiltonian paths on separate layers for VDD and GND with net widths proportional to total current, and mesh routing for standard-cell digital ICs, where rings are created around the core and blocks, and a mesh grid of metal strips spans the chip across multiple layers. Lower-level metal layers (e.g., M1) connect standard cell VDD/GND to the top-level mesh using intermediate vias, and top-level metals are wider to handle higher currents and reduce voltage drop.
+Floor planning techniques include slicing floor plans, represented by a slicing tree with blocks as leaves and cuts as internal nodes, and non-slicing floor plans that allow flexible block arrangements. Representations such as constraint graphs (horizontal HCG and vertical VCG) and sequence pairs systematically encode relative positions. In HCG, an edge from block 
+𝑀
+𝑖
+M
+i
+	​
 
-In summary, floor planning, pin assignment, and power/ground routing form a systematic methodology in VLSI physical design to achieve optimized layouts, minimal interconnect parasitics, robust power delivery, and improved overall chip performance. The key formulas include block area A = w × h, vertical and horizontal composition for floor planning, Euclidean distance for pin assignment, power density, and probabilistic acceptance in simulated annealing. Together, these techniques ensure efficient chip operation, minimal delay, and reliable power distribution.
+ to 
+𝑀
+𝑗
+M
+j
+	​
+
+ exists if 
+𝑀
+𝑖
+M
+i
+	​
+
+ is left of 
+𝑀
+𝑗
+M
+j
+	​
+
+; in VCG, if 
+𝑀
+𝑖
+M
+i
+	​
+
+ is below 
+𝑀
+𝑗
+M
+j
+	​
+
+. Sequence pairs use two sequences 
+𝑆
++
+S
++
+ and 
+𝑆
+−
+S
+−
+ to encode block positions: if 
+𝐴
+A appears before 
+𝐵
+B in both sequences, 
+𝐴
+A is left of 
+𝐵
+B; if 
+𝐴
+A appears before 
+𝐵
+B in 
+𝑆
++
+S
++
+ and after 
+𝐵
+B in 
+𝑆
+−
+S
+−
+, 
+𝐴
+A is above 
+𝐵
+B. Coordinates are derived using the Longest Common Subsequence (LCS) algorithm, considering block widths, heights, and packing directions. The global bounding box dimensions are then:
+
+Width
+=
+max
+⁡
+(
+𝑋
+𝑖
++
+𝑊
+𝑖
+)
+,
+Height
+=
+max
+⁡
+(
+𝑌
+𝑖
++
+𝐻
+𝑖
+)
+Width=max(X
+i
+	​
+
++W
+i
+	​
+
+),Height=max(Y
+i
+	​
+
++H
+i
+	​
+
+)
+
+Shape functions define feasible width (
+𝑤
+w) and height (
+ℎ
+h) combinations for each block while keeping area constant (
+𝐴
+=
+𝑤
+×
+ℎ
+A=w×h), respecting technology constraints and IP restrictions. Vertical composition sums heights and takes the maximum width:
+
+𝑊
+floor
+=
+max
+⁡
+(
+𝑊
+𝑖
+)
+,
+𝐻
+floor
+=
+∑
+𝐻
+𝑖
+W
+floor
+	​
+
+=max(W
+i
+	​
+
+),H
+floor
+	​
+
+=∑H
+i
+	​
+
+
+Horizontal composition sums widths and takes the maximum height:
+
+𝑊
+floor
+=
+∑
+𝑊
+𝑖
+,
+𝐻
+floor
+=
+max
+⁡
+(
+𝐻
+𝑖
+)
+W
+floor
+	​
+
+=∑W
+i
+	​
+
+,H
+floor
+	​
+
+=max(H
+i
+	​
+
+)
+
+The floor plan area is then 
+𝐴
+floor
+=
+𝑊
+floor
+×
+𝐻
+floor
+A
+floor
+	​
+
+=W
+floor
+	​
+
+×H
+floor
+	​
+
+.
+
+Common floor planning algorithms include: Linear Ordering, which generates an initial block sequence minimizing wire length using gains computed as 
+Gain
+=
+terminating nets
+−
+new nets
+Gain=terminating nets−new nets; Cluster Growth, which iteratively adds blocks to a growing cluster to minimize the bounding box area; and Simulated Annealing, a probabilistic optimization that accepts worse solutions with probability 
+𝑃
+(
+accept
+)
+=
+𝑒
+−
+Δ
+𝐶
+/
+𝑇
+P(accept)=e
+−ΔC/T
+ to escape local minima.
+
+After floorplanning, pin assignment connects all nets to unique pin locations to optimize performance. External pins connect I/O signals, minimizing interconnect length and parasitics, while internal pins reduce congestion and wire length within modules. Methods include the concentric circle method, which projects block pins and chip pins onto circles to iteratively minimize Euclidean distances (
+𝑑
+=
+(
+𝑥
+2
+−
+𝑥
+1
+)
+2
++
+(
+𝑦
+2
+−
+𝑦
+1
+)
+2
+d=
+(x
+2
+	​
+
+−x
+1
+	​
+
+)
+2
++(y
+2
+	​
+
+−y
+1
+	​
+
+)
+2
+	​
+
+), and topological pin assignment, which considers external block positions and multipin nets.
+
+Power and ground routing ensures reliable chip operation by designing a robust power distribution network (PDN) that minimizes IR drop, balances power density, and supports voltage/current fluctuations. Inputs include total chip power, maximum power density, and dynamic power variations. Each block is connected to VDD and GND using thick metal lines and multiple vias. Approaches include planar routing for full-custom designs, where power lines follow a Hamiltonian path, and mesh routing for standard-cell designs, where metal grids and rings provide low-resistance connections. Key considerations include power density (
+Power Density
+=
+Power in region
+Area of region
+Power Density=
+Area of region
+Power in region
+	​
+
+), metal width proportional to current requirement, and minimizing IR drop using wider metals and multiple vias.
+
+In summary, effective VLSI floorplanning, pin assignment, and power/ground routing leverage algorithms and systematic representations to optimize chip area, wirelength, signal integrity, and power delivery, forming the foundation of efficient and high-performance IC design.
